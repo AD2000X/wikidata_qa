@@ -1,0 +1,4 @@
+httpx
+diskcache
+SPARQLWrapper
+pandas
