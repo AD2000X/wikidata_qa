@@ -271,3 +271,4 @@ Every response includes a full decision trace: semantic frame, parser source, va
 - The system queries the public Wikidata SPARQL endpoint, which has rate limits and may occasionally return timeout errors.
 - Hardcoded assertions in the minimal version will become outdated as real-world data changes over time.
 - Gemini free tier allows 15 RPM and 1,000 RPD for Flash-Lite.
+- Multi-hop reasoning is template-based. Each property chain (e.g. person → spouse → birth place) is hardcoded in the SPARQL builder. Adding new multi-hop intents requires manual changes to config.py, build_sparql(), and format_answer(). A deterministic chain compiler could generalise pure-chain intents without resorting to graph matching or LLM-generated SPARQL.
