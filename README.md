@@ -80,7 +80,7 @@ python test_wikidata_qa_adv.py
 cd ../wikidata_qa_llm
 python test_wikidata_qa_llm.py
 
-# LLM version — semantic pipeline tests
+# LLM version — semantic pipeline tests (requires GEMINI_API_KEY)
 python test_semantic_pipeline.py
 
 # LLM version — full integration tests (requires GEMINI_API_KEY + network)
