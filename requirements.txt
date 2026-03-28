@@ -1,4 +1,3 @@
 httpx
 diskcache
 SPARQLWrapper
-pandas
