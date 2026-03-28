@@ -8,9 +8,11 @@ This system takes natural language questions (e.g. "How old is Tom Cruise?", "Wh
 
 Each implementation builds on the previous one:
 
-- **wikidata_qa_min** -- Minimal prototype (~90 lines). Regex intent matching, hardcoded QID lookups, two intent types only.
-- **wikidata_qa_adv** -- Advanced version (~920 lines). Multi-signal entity disambiguation, persistent caching, retry with exponential backoff, async batch queries, and multi-hop SPARQL reasoning.
-- **wikidata_qa_llm** -- LLM-assisted version. Replaces the regex-based intent detection with Gemini 2.5 Flash-Lite structured output, while keeping the existing regex pipeline as a deterministic fallback. All downstream modules (entity resolution, SPARQL generation, answer formatting) remain fully deterministic.
+- **wikidata_qa_min** -- Minimal prototype (~90 lines). Regex intent matching, hardcoded QID lookups, two intent types only. Question → rule-based intent recognition → entity-to-QID mapping → SPARQL query construction → Wikidata query → formatted answer.
+
+- **wikidata_qa_adv** -- Advanced version (~920 lines). Multi-signal entity disambiguation, persistent caching, retry with exponential backoff, async batch queries, and multi-hop SPARQL reasoning. Question → intent detection → entity extraction → candidate search and disambiguation → QID selection → SPARQL query construction → cached/retried Wikidata query execution → result formatting.
+
+- **wikidata_qa_llm** -- LLM-assisted version. Replaces the regex-based intent detection with Gemini 2.5 Flash-Lite structured output, while keeping the existing regex pipeline as a deterministic fallback. All downstream modules (entity resolution, SPARQL generation, answer formatting) remain fully deterministic. Question → intent detection (rule-based + semantic fallback) → entity extraction → candidate search and disambiguation → QID selection → SPARQL query construction (including multi-hop property chains) → cached/retried Wikidata query execution → result formatting.
 
 ## Quick Start
 
