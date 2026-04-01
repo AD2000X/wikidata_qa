@@ -1,6 +1,6 @@
 # Wikidata QA
 
-A Python-based question answering system that retrieves factual answers from Wikidata using SPARQL queries. The project contains three implementations arranged by complexity: a minimal single-file version, an advanced version with caching and disambiguation, and an LLM-assisted version with Gemini-based semantic parsing.
+A Python-based question answering system that retrieves factual answers from Wikidata using SPARQL queries. The project contains four implementations arranged by complexity: a minimal single-file version, an advanced version with caching and disambiguation, an LLM-assisted version with Gemini-based semantic parsing, and a dynamic LLM version with fully dynamic entity linking.
 
 ## Overview
 
@@ -8,11 +8,13 @@ This system takes natural language questions (e.g. "How old is Tom Cruise?", "Wh
 
 Each implementation builds on the previous one:
 
-- **wikidata_qa_min** -- Minimal prototype (~90 lines). Regex intent matching, hardcoded QID lookups, two intent types only. Question → rule-based intent recognition → entity-to-QID mapping → SPARQL query construction → Wikidata query → formatted answer.
+- **wikidata_qa_min** -- Minimal prototype (~90 lines). Regex intent matching, hardcoded QID lookups, two intent types only. Question -> rule-based intent recognition -> entity-to-QID mapping -> SPARQL query construction -> Wikidata query -> formatted answer.
 
-- **wikidata_qa_adv** -- Advanced version (~920 lines). Multi-signal entity disambiguation, persistent caching, retry with exponential backoff, async batch queries, and multi-hop SPARQL reasoning. Question → intent detection → entity extraction → candidate search and disambiguation → QID selection → SPARQL query construction → cached/retried Wikidata query execution → result formatting.
+- **wikidata_qa_adv** -- Advanced version (~920 lines). Multi-signal entity disambiguation, persistent caching, retry with exponential backoff, async batch queries, and multi-hop SPARQL reasoning. Question -> intent detection -> entity extraction -> candidate search and disambiguation -> QID selection -> SPARQL query construction -> cached/retried Wikidata query execution -> result formatting.
 
-- **wikidata_qa_llm** -- LLM-assisted version. Adds Gemini 2.5 Flash-Lite semantic parsing on top of the deterministic pipeline, while keeping the legacy regex parser as a fallback. All downstream modules (entity resolution, SPARQL generation, execution verification, and answer formatting) remain deterministic. Question → Gemini semantic parsing → frame validation → confidence-based routing / regex fallback → entity resolution and disambiguation → type reconciliation → SPARQL query construction → cached/retried Wikidata query execution → execution verification → result formatting.
+- **wikidata_qa_llm** -- LLM-assisted version. Adds Gemini 2.5 Flash-Lite semantic parsing on top of the deterministic pipeline, while keeping the legacy regex parser as a fallback. All downstream modules (entity resolution, SPARQL generation, execution verification, and answer formatting) remain deterministic. Question -> Gemini semantic parsing -> frame validation -> confidence-based routing / regex fallback -> entity resolution and disambiguation -> type reconciliation -> SPARQL query construction -> cached/retried Wikidata query execution -> execution verification -> result formatting.
+
+- **wikidata_qa_llm_dyna** -- Dynamic LLM-assisted version. Keeps the semantic parsing, audit trail, and deterministic SPARQL compilation of the LLM version, but replaces fixed or semi-manual entity resolution with a fully dynamic entity linking pipeline. Candidate recall is generated at runtime, ranking combines embedding similarity with context-aware disambiguation, and low-confidence candidates are rejected through NIL detection. Question -> Gemini semantic parsing / regex fallback -> frame validation -> dynamic candidate recall -> embedding-based entity linking -> type reconciliation -> deterministic SPARQL query construction -> cached/retried Wikidata query execution -> execution verification -> result formatting.
 
 ## Quick Start
 
@@ -27,9 +29,9 @@ Each implementation builds on the previous one:
 pip install sparqlwrapper httpx diskcache
 ```
 
-### Gemini API Key (LLM version only)
+### Gemini API Key (LLM versions only)
 
-The LLM version requires a free Gemini API key from [Google AI Studio](https://aistudio.google.com/). Without the key, the system falls back to the regex parser automatically.
+The `wikidata_qa_llm` and `wikidata_qa_llm_dyna` versions require a free Gemini API key from [Google AI Studio](https://aistudio.google.com/). Without the key, the system falls back to the regex parser automatically. In the dynamic version, the same key also enables Gemini embedding-based entity ranking.
 
 **Linux / macOS:**
 
@@ -78,17 +80,24 @@ python wikidata_qa_min.py
 cd ../wikidata_qa_adv
 python test_wikidata_qa_adv.py
 
-# LLM version — end-to-end assertions (network access required;
+# LLM version - end-to-end assertions (network access required;
 # uses Gemini if GEMINI_API_KEY is set, otherwise falls back to regex)
 cd ../wikidata_qa_llm
 python test_wikidata_qa_llm.py
 
-# LLM version — semantic pipeline tests
+# LLM version - semantic pipeline tests
 # unit-style validator/reconciler/verifier tests run without a key;
 # Gemini integration tests are skipped unless GEMINI_API_KEY is set
 python test_semantic_pipeline.py
 
-# LLM version — force Gemini-enabled end-to-end run
+# Dynamic LLM version - four-question regression test
+cd ../wikidata_qa_llm_dyna
+python test_wikidata_qa_llm.py
+
+# Dynamic LLM version - semantic pipeline tests
+python test_semantic_pipeline.py
+
+# LLM version - force Gemini-enabled end-to-end run
 GEMINI_API_KEY="your-key" python test_wikidata_qa_llm.py
 ```
 
@@ -99,9 +108,18 @@ $env:GEMINI_API_KEY="your-key-here"
 python test_wikidata_qa_llm.py
 ```
 
+For the dynamic LLM version on Windows PowerShell:
+
+```powershell
+cd .\wikidata_qa_llm_dyna
+$env:GEMINI_API_KEY="your-key-here"
+python test_wikidata_qa_llm.py
+python test_semantic_pipeline.py
+```
+
 ## Project Structure
 
-```
+```text
 SPARQL/
 ├── requirements.txt
 ├── wikidata_qa_min/
@@ -111,11 +129,21 @@ SPARQL/
 │   ├── qid_fallback.json
 │   ├── test_wikidata_qa_adv.py
 │   └── wikidata_qa_adv.py
-└── wikidata_qa_llm/
+├── wikidata_qa_llm/
+│   ├── config.py
+│   ├── qid_fallback.json
+│   ├── gemini_config.py
+│   ├── semantic_parser.py
+│   ├── resolution_reconciler.py
+│   ├── execution_verifier.py
+│   ├── wikidata_qa_llm.py
+│   ├── test_wikidata_qa_llm.py
+│   └── test_semantic_pipeline.py
+└── wikidata_qa_llm_dyna/
     ├── config.py
-    ├── qid_fallback.json
     ├── gemini_config.py
     ├── semantic_parser.py
+    ├── entity_linker.py
     ├── resolution_reconciler.py
     ├── execution_verifier.py
     ├── wikidata_qa_llm.py
@@ -171,9 +199,9 @@ from wikidata_qa_llm import WikidataQA
 
 with WikidataQA() as qa:
     result = qa.ask("What is the capital of France?")
-    print(result["answer"])          # "Paris"
-    print(result["parser_source"])   # "gemini" or "regex_fallback"
-    print(result["status"])          # "ok"
+    print(result["answer"])        # "Paris"
+    print(result["parser_source"]) # "gemini" or "regex_fallback"
+    print(result["status"])        # "ok"
 ```
 
 To use regex-only mode without any LLM dependency:
@@ -186,9 +214,41 @@ with WikidataQA(use_llm_parser=False) as qa:
     print(result["answer"])
 ```
 
+### Dynamic LLM Version
+
+Inside `wikidata_qa_llm_dyna/`, the dynamic version exposes the same high-level API:
+
+```python
+from wikidata_qa_llm import WikidataQA
+
+with WikidataQA() as qa:
+    result = qa.ask("What is the population of New York?")
+    print(result["answer"])                   # e.g. "8804190"
+    print(result["resolved_qid"])             # e.g. "Q60"
+    print(result["parser_source"])            # "gemini" or "regex_fallback"
+    print(result["linking"]["score"])         # entity-linking score
+    print(result["linking"]["candidate_scores"])
+```
+
+To use regex-only parsing mode in the dynamic version:
+
+```python
+from wikidata_qa_llm import ask
+
+answer = ask("How old is Tom Cruise?", use_llm_parser=False)
+print(answer)
+```
+
+To run the basic four-question regression test in the dynamic version:
+
+```bash
+cd wikidata_qa_llm_dyna
+python test_wikidata_qa_llm.py
+```
+
 ### Async Batch Queries
 
-Both the advanced and LLM versions support asynchronous batch processing:
+Both the LLM and dynamic LLM versions support asynchronous batch processing:
 
 ```python
 import asyncio
@@ -205,7 +265,7 @@ for r in results:
     print(f"{r['question']} -> {r['answer']} (via {r['parser_source']})")
 ```
 
-### Inspecting the Audit Trail (LLM Version)
+### Inspecting the Audit Trail (LLM Versions)
 
 ```python
 from wikidata_qa_llm import WikidataQA
@@ -217,6 +277,7 @@ with WikidataQA() as qa:
     print(result["validation_warnings"])  # []
     print(result["reconciliation"])       # {"is_compatible": True, ...}
     print(result["verification"])         # {"is_valid": True, ...}
+    print(result["linking"])              # entity-linking diagnostics
 ```
 
 ## Architecture
@@ -225,55 +286,58 @@ with WikidataQA() as qa:
 
 The minimal version uses a list of regex patterns to match questions to predefined intents. The advanced version adds a two-stage approach: rule-based keyword matching first, then token-level semantic similarity as a fallback if no rule matches.
 
-The LLM version adds a Gemini-based semantic parser that outputs a structured SemanticFrame (intent, entity_text, entity_type_hint, confidence) using constrained JSON schema at the API level. The existing regex pipeline remains available as a deterministic fallback, and parser selection is controlled by validation and confidence-based routing.
+The LLM and dynamic LLM versions add a Gemini-based semantic parser that outputs a structured `SemanticFrame` (`intent`, `entity_text`, `entity_type_hint`, `confidence`) using constrained JSON schema at the API level. The existing regex pipeline remains available as a deterministic fallback, and parser selection is controlled by validation and confidence-based routing.
 
-Confidence routing in the LLM version:
+Confidence routing in the LLM versions:
 
-- >= 0.75: use Gemini result directly
-- 0.40 to 0.75: try regex first, fall back to Gemini
-- < 0.40: prefer regex; if regex also fails, accept Gemini but mark as ambiguous
-- < 0.20 with intent=unsupported: refuse the question
+- `>= 0.75`: use Gemini result directly
+- `0.40` to `0.75`: try regex first, fall back to Gemini
+- `< 0.40`: prefer regex; if regex also fails, accept Gemini but mark as ambiguous
+- `< 0.20` with `intent=unsupported`: refuse the question
 
 ### Entity Resolution
 
-The minimal version relies on a hardcoded dictionary and exact label matching via SPARQL. The advanced and LLM versions query the Wikidata Search API, retrieve up to eight candidates, and score each one based on label similarity, alias matching, type hierarchy checking (P31/P279), description relevance, and disambiguation penalties. The highest-scoring candidate is selected.
+The minimal version relies on a hardcoded dictionary and exact label matching via SPARQL. The advanced and `wikidata_qa_llm` versions query the Wikidata Search API, retrieve up to eight candidates, and score each one based on label similarity, alias matching, type hierarchy checking (`P31/P279`), description relevance, and disambiguation penalties. The highest-scoring candidate is selected.
 
-### Frame Validation (LLM Version)
+The `wikidata_qa_llm_dyna` version replaces that resolver with a dynamic entity linking pipeline: candidate recall from Wikidata Search API plus alias expansion, embedding-based candidate ranking with Gemini embeddings, context-aware disambiguation using the full question text, and NIL detection when the top score falls below a configured threshold.
 
-FrameValidator checks the SemanticFrame for hard errors (invalid intent, empty entity, clearly contradictory type hints) and soft warnings (`soft_type_mismatch` when a supported intent has `entity_type_hint="unknown"`, plus low/medium confidence warnings). The entity_type_hint is treated as a weak signal from the parser -- only obviously contradictory combinations trigger hard errors.
+### Frame Validation (LLM Versions)
 
-### Resolution Reconciliation (LLM Version)
+`FrameValidator` checks the `SemanticFrame` for hard errors (invalid intent, empty entity, clearly contradictory type hints) and soft warnings (`soft_type_mismatch` when a supported intent has `entity_type_hint="unknown"`, plus low/medium confidence warnings). The `entity_type_hint` is treated as a weak signal from the parser; only obviously contradictory combinations trigger hard errors.
 
-After entity resolution, the ResolutionReconciler compares the parser's type hint against the resolver's actual types and the intent's expected types. It corrects the type hint for the audit trail and logs warnings, but never hard-rejects a result.
+### Resolution Reconciliation (LLM Versions)
+
+After entity resolution, the `ResolutionReconciler` compares the parser's type hint against the resolver's actual types and the intent's expected types. It corrects the type hint for the audit trail and logs warnings, but never hard-rejects a result.
 
 ### SPARQL Compilation
 
-All three versions use deterministic template-based SPARQL generation from intent and QID. In the LLM version, the model never generates SPARQL directly.
+All four versions use deterministic template-based SPARQL generation from intent and QID. In the LLM and dynamic LLM versions, the model never generates SPARQL directly.
 
-### Execution Verification (LLM Version)
+### Execution Verification (LLM Versions)
 
-ExecutionVerifier checks SPARQL results for empty results, missing fields, invalid values, and cardinality violations before answer formatting.
+`ExecutionVerifier` checks SPARQL results for empty results, missing fields, invalid values, and cardinality violations before answer formatting.
 
 ### Caching and Retry
 
-The advanced and LLM versions use diskcache for persistent caching with configurable TTL per intent. HTTP requests include exponential backoff with jitter and a retryable status code whitelist (408, 429, 500, 502, 503, 504). Concurrency is controlled through asyncio semaphores.
+The advanced, LLM, and dynamic LLM versions use `diskcache` for persistent caching with configurable TTL per intent. HTTP requests include exponential backoff with jitter and a retryable status code whitelist (`408`, `429`, `500`, `502`, `503`, `504`). Concurrency is controlled through asyncio semaphores.
 
-### Audit Trail (LLM Version)
+### Audit Trail (LLM Versions)
 
-Successful supported responses include a full decision trace: semantic frame, parser source, validation errors and warnings, reconciliation result, and verification result. Unsupported responses return a smaller parsing-stage audit record.
+Successful supported responses include a full decision trace: semantic frame, parser source, validation errors and warnings, reconciliation result, verification result, and linking diagnostics. Unsupported responses return a smaller parsing-stage audit record.
 
 ## Design Principles
 
 - **LLM chooses among allowed structures; it never defines the structure.** The model outputs a constrained semantic frame. All formal operations (entity resolution, SPARQL generation, answer formatting) are deterministic.
 - **Graceful degradation.** If Gemini is unavailable or low-confidence, the system falls back to the legacy regex parsing logic while preserving the LLM-version audit structure.
 - **Auditability.** Successful supported responses include a full decision trace, including which parser produced the result and why; unsupported responses still retain parsing-stage audit fields.
-- **Provider-agnostic.** The SemanticParser protocol can be implemented for any LLM provider (Gemini, OpenRouter, local models) without changing the pipeline.
+- **Dynamic linking without hardcoded QIDs.** The dynamic LLM version resolves entities through runtime recall, ranking, and NIL detection instead of fixed per-entity overrides.
+- **Provider-agnostic.** The `SemanticParser` protocol can be implemented for any LLM provider (Gemini, OpenRouter, local models) without changing the pipeline.
 
 ## Limitations
 
 - Intent detection depends on predefined patterns (regex) or LLM classification (Gemini). Complex or heavily paraphrased questions may not be handled.
-- Entity resolution uses token-level overlap rather than embedding-based similarity, so it may struggle with ambiguous short names.
+- The dynamic LLM version depends more heavily on external APIs because semantic parsing, embedding-based ranking, and Wikidata lookup all contribute to the final answer path.
 - The system queries the public Wikidata SPARQL endpoint, which has rate limits and may occasionally return timeout errors.
 - Hardcoded assertions in the minimal version will become outdated as real-world data changes over time.
 - Gemini usage limits depend on the current Google AI Studio / Gemini API quota policy.
-- Multi-hop reasoning is template-based. Each property chain (e.g. person → spouse → birth place) is hardcoded in the SPARQL builder. Adding new multi-hop intents requires manual changes to config.py, build_sparql(), and format_answer(). A deterministic chain compiler could generalise pure-chain intents without resorting to graph matching or LLM-generated SPARQL.
+- Multi-hop reasoning is template-based. Each property chain (e.g. person -> spouse -> birth place) is hardcoded in the SPARQL builder. Adding new multi-hop intents requires manual changes to `config.py`, `build_sparql()`, and `format_answer()`.
